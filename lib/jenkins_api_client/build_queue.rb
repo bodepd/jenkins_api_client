@@ -56,6 +56,25 @@ module JenkinsApi
         tasks
       end
 
+      # list all tasks in the build queue, along with their associated id number, and build parameters
+      def list_task_id_with_build_params
+        response_json = @client.api_get_request("/queue")
+        tasks = {}
+        response_json["items"].each do |item|
+          params = {}
+          item["params"].split(/\n/).each do |x|
+            if x =~ /^\(.+?\)\s+(\S+)='(\S+)?'/
+              params[$1] = $2
+            elsif x =~ /^\s*$/
+            else
+              raise(Exception, "Item #{item['id']}'s param '#{x}' did not match expected regexp")
+            end
+          end
+          tasks[item['id']] = {'job_name' => item["task"]["name"], 'parameters' => params }
+        end
+        tasks
+      end
+
       # Gets the time number of seconds the task is in the queue
       #
       # @param [String] task_name Name of the task/job
@@ -81,7 +100,17 @@ module JenkinsApi
         response_json = @client.api_get_request("/queue")
         details = {}
         response_json["items"].each do |item|
-          details = item if item["task"]["name"]
+          details = item if item["task"]["name"] == task_name
+        end
+        details
+      end
+
+      # given the id of a build, get its details
+      def get_details_from_id(id)
+        response_json = @client.api_get_request("/queue")
+        details = {}
+        response_json["items"].each do |item|
+          return item if item["id"].to_s == id.to_s
         end
         details
       end
